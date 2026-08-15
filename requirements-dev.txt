@@ -1,0 +1,7 @@
+# Development and test dependencies.
+-r requirements.txt
+
+pytest==9.1.1
+# Starlette's TestClient uses httpx2; installing httpx 1.x instead emits a
+# deprecation warning on every test run.
+httpx2==2.10.0

@@ -1,0 +1,6 @@
+# Shell scripts must keep LF endings or they break when the repository is
+# cloned on Windows and the script is run under Git Bash / in a container.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+
+* text=auto

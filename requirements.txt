@@ -1,0 +1,11 @@
+# Runtime dependencies, pinned so a build is reproducible.
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+SQLAlchemy==2.0.52
+alembic==1.19.1
+pydantic==2.13.4
+pydantic-settings==2.15.0
+
+# PostgreSQL driver. Not needed for the default SQLite configuration, but
+# included so DATABASE_URL can point at Postgres without a rebuild.
+psycopg[binary]==3.3.4

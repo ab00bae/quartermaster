@@ -1,0 +1,17 @@
+[project]
+name = "quartermaster"
+version = "0.1.0"
+description = "Inventory and stock-movement API with an append-only audit log."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 90
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]

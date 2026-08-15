@@ -1,0 +1,122 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      # Runs the migration forwards, back to base, and forwards again. A
+      # migration that cannot be reversed is only discovered when someone needs
+      # to roll back, which is the worst moment to find out.
+      - name: Migrations apply and reverse
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+
+      - name: Seed script is idempotent
+        run: |
+          python -m scripts.seed > first.txt
+          python -m scripts.seed > second.txt
+          diff <(tail -n +2 first.txt) <(tail -n +2 second.txt) \
+            || { echo "re-running the seed changed the database"; exit 1; }
+
+      - name: Test
+        run: pytest -q
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Loaded into the local daemon rather than pushed: this repository proves
+      # the image works, it does not publish one.
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: quartermaster:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Building proves it compiles; only running it proves the entrypoint
+      # applies migrations and the app actually serves.
+      - name: Run the container
+        run: |
+          docker run -d --name qm -p 8000:8000 \
+            -e SEED_ON_START=true quartermaster:ci
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health > health.json; then
+              echo "healthy after ${i} attempt(s)"
+              cat health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "service never became healthy"
+          docker logs qm
+          exit 1
+
+      - name: Migrations ran inside the container
+        run: |
+          docker logs qm 2>&1 | grep -q "applying migrations" \
+            || { echo "entrypoint did not run migrations"; docker logs qm; exit 1; }
+
+      - name: Seeded data is served
+        run: |
+          count=$(curl -fsS "http://127.0.0.1:8000/items?low_stock=true" \
+            | python -c "import json,sys; print(len(json.load(sys.stdin)))")
+          echo "low-stock items: $count"
+          [ "$count" = "4" ] || { echo "expected 4 low-stock items"; docker logs qm; exit 1; }
+
+      - name: The business rule holds in the container
+        run: |
+          status=$(curl -s -o body.json -w "%{http_code}" \
+            -X POST http://127.0.0.1:8000/items/1/movements \
+            -H 'Content-Type: application/json' \
+            -d '{"delta": -99999, "reason": "sale"}')
+          echo "status=$status"; cat body.json
+          [ "$status" = "409" ] || { echo "oversell was not rejected"; exit 1; }
+          grep -q INSUFFICIENT_STOCK body.json \
+            || { echo "wrong error code"; exit 1; }
+
+      - name: Container logs
+        if: always()
+        run: docker logs qm || true
+
+      - name: Stop the container
+        if: always()
+        run: docker rm -f qm || true

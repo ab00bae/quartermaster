@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 
 from sqlalchemy import (
     CheckConstraint,
@@ -19,10 +19,10 @@ from app.types import UtcDateTime
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-class MovementReason(str, Enum):
+class MovementReason(StrEnum):
     """Why stock moved. Kept small and closed so reports can group on it."""
 
     RECEIPT = "receipt"
@@ -54,7 +54,7 @@ class Item(Base):
         UtcDateTime, default=utcnow, onupdate=utcnow
     )
 
-    movements: Mapped[list["StockMovement"]] = relationship(
+    movements: Mapped[list[StockMovement]] = relationship(
         back_populates="item",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -89,4 +89,4 @@ class StockMovement(Base):
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
 
-    item: Mapped["Item"] = relationship(back_populates="movements")
+    item: Mapped[Item] = relationship(back_populates="movements")

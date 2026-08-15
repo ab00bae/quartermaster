@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime
 from sqlalchemy.types import TypeDecorator
@@ -28,7 +28,7 @@ class UtcDateTime(TypeDecorator):
             return None
         if value.tzinfo is None:
             raise ValueError("Refusing to store a naive datetime; supply a UTC value.")
-        return value.astimezone(timezone.utc)
+        return value.astimezone(UTC)
 
     def process_result_value(
         self, value: datetime | None, dialect
@@ -38,5 +38,5 @@ class UtcDateTime(TypeDecorator):
         # Naive here means the backend dropped the offset (SQLite); the value was
         # written as UTC, so label it as such rather than guessing local time.
         if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)

@@ -75,7 +75,10 @@ def main() -> None:
         low = service.list_items(low_stock=True)
         print(f"Items at or under reorder threshold: {len(low)}")
         for item in low:
-            print(f"  {item.sku:<12} {item.quantity:>4} / threshold {item.reorder_threshold}")
+            print(
+                f"  {item.sku:<12} {item.quantity:>4} "
+                f"/ threshold {item.reorder_threshold}"
+            )
     finally:
         db.close()
 

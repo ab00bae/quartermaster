@@ -12,6 +12,10 @@ addopts = "-q --strict-markers"
 [tool.ruff]
 line-length = 90
 target-version = "py311"
+# Migration bodies are written by `alembic revision --autogenerate`. Reformatting
+# machine-generated code creates churn without making anything clearer, and the
+# next autogenerate would undo it.
+extend-exclude = ["alembic/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "C4", "SIM"]

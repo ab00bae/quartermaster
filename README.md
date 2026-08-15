@@ -1,5 +1,7 @@
 # quartermaster
 
+[![ci](https://github.com/ab00bae/quartermaster/actions/workflows/ci.yml/badge.svg)](https://github.com/ab00bae/quartermaster/actions/workflows/ci.yml)
+
 An inventory and stock-movement API. Items carry a SKU, quantity, location and
 reorder threshold; every change to a quantity is written to an append-only audit
 log, and a movement that would take stock below zero is rejected.
@@ -176,6 +178,11 @@ The image is a multi-stage build that carries only the resulting virtualenv into
 the runtime layer, runs as a non-root user, and declares a healthcheck. The
 entrypoint applies migrations before serving, so a container started against an
 empty database is immediately usable.
+
+CI builds this image on every push and then *runs* it — waiting for `/health`,
+confirming the entrypoint applied migrations, checking the seeded data is
+served, and asserting the oversell rule still returns 409 from inside the
+container. Building is not the same as working, so the pipeline checks both.
 
 ## Project layout
 
